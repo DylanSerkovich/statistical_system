@@ -1,0 +1,223 @@
+---
+title: "Reporte de Empresa"
+author: "Dilam Serkovich"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+  pdf_document: default
+lang: es-ES
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(readxl)   #Leer excel
+library(ggthemes) #Paquetes colores de themas
+library(tidyverse)#Conjunto de Paquetes
+library(ggplot2)  #Graficos ggplot2 
+#library(car)      #Cambiar variables
+library(highcharter)#Graficos dinamicos
+
+setwd("C:/Users/USER/Documents/RProjects/statistical_system")
+#Importar los datos del archivo de excel
+Datos <- read_excel(paste0(getwd(), "/data.xlsx"))
+Datos_muestra <- Datos
+Datos_muestra$fecha <- as.Date(Datos_muestra$fecha)
+#Selecciónar columnas que se van a utilizar
+datos2 <- select(Datos, Descripción, Cantidad, fecha)
+datos3 <- Datos
+datos3$fecha <-as.Date(datos3$fecha)
+
+```
+
+# Reporte R Markdown
+
+Este documento permitirá la vizualización de resultados y gráficos estadísticos para la empresa textil: Confecciónes Guianella.
+Se utilizará una muestra de datos de ventas de los meses de Junio hasta Septiembre
+_____________________________________________________________________________________________________________________
+_____________________________________________________________________________________________________________________
+
+## Mostrar Tabla de Datos
+<button class="btn btn-primary" data-toggle="collapse" data-target="#BlockTable"> Mostrar/Ocultar </button>  
+<div id="BlockTable" class="collapse"> 
+
+```{r}
+#Mostrar Muestra de manera ordenada y en formato
+knitr::kable(Datos_muestra, format = "markdown")
+#Datos_muestra
+```
+</div id="BlockTable">
+_____________________________________________________________________________________________________________________
+_____________________________________________________________________________________________________________________
+
+
+## Prendas más vendidas
+
+*En las siguientes ilustraciónes se visualizará la cantidad y el tipo de prenda que se vendio durante los meses siguientes:*
+
+
+### Graficos no interactivo
+
+
+```{r pressure, echo=FALSE, warning=FALSE, message=FALSE, fig.align = 'center',  fig.width = 10, fig.height = 6}
+rm(pf)
+pf<-ggplot(data = datos2, mapping = aes(x = fecha, y = Cantidad, color = Descripción, size = Cantidad, alpha=0.8))+
+  geom_point() + geom_smooth(se=FALSE)+
+  labs(title = "Cantidad de productos por Mes",
+       subtitle = "Excel de Ventas",
+       x = "Mes(fecha)",
+       y = "Unidades",
+       color = list(text='Prenda/Pieza'),
+       size = "Cantidad") +
+  guides(size = FALSE, alpha=FALSE) +
+  theme_fivethirtyeight()+
+  theme(legend.title = element_text(color="black", size=12, face="bold"),
+        plot.subtitle = element_text(color="grey", size=14, face="bold.italic"),
+        axis.title.x = element_text(color="black", size=12, face="bold"),
+        axis.title.y = element_text(color="black", size=12, face="bold"),
+        plot.title = element_text(color="black", size=18, face="bold")) +
+  scale_colour_brewer(palette = "Paired")
+pf
+```
+
+### Grafico detallado e interactivo
+    
+```{r dinamic, echo=FALSE, warning=FALSE, message=FALSE, fig.align = 'center',  fig.width = 15, fig.height = 15}
+
+#data( datos3, package = "ggplot2")
+
+hchart(datos3, "scatter", hcaes(x = fecha, y = Cantidad , group = Descripción, size = Importe, alpha = 0.8)) %>%
+  hc_title(text = "Prendas por Fecha y su Importe") %>%
+   hc_subtitle (text = "Data de Excel") %>% 
+  hc_tooltip(crosshairs = TRUE, pointFormat = "fecha: {point.x:%d/%m/%Y} <br> cantidad: {point.y} <br> Importe:  S/{point.size}") %>% 
+  hc_add_theme(hc_theme_darkunica())
+ 
+
+
+```
+
+## Pronostico de Ventas
+En este apartado se mostrará el pronostico de ventas en los proximos 6 meses, se utilizará un excel con datos aleatorios(Los datos pueden venir directamente del base de datos real).
+```{r SerieTime, echo=FALSE, warning=FALSE, message=FALSE,fig.align = 'center',  fig.width = 15, fig.height = 15}
+
+library(dplyr)    #Paquete para seleccionar columna(transformar dataframe)
+library(fpp2)     #Trabajar con plop de series de tiempo
+library(lubridate)#Manipular fechas
+library(tidyr)    #Manipular datos
+
+#Cargar Datos de ventas aleatorias desde 2019-2021
+DatosL <- read_excel(paste0(getwd(), "/dataL.xlsx"))
+
+#Seleccionar datos de Importe y fecha
+Ventas_diarias <- select(DatosL, Importe, fecha)
+
+#Cambiar el nombre de Importe a Ventas
+colnames(Ventas_diarias)[1]<- "ventas"
+
+#Transformar a ventas mensuales
+ventas_mensuales <- Ventas_diarias %>%
+  mutate(month = format(fecha, "%m"), year =format(fecha, "%Y")) %>%
+  group_by(month, year) %>%
+  summarise(ventas = sum(ventas))
+
+ventas_mensuales <- ventas_mensuales[with(ventas_mensuales, order(ventas_mensuales$year)),]
+
+#Crear una serie temporal de ventas_mensuales
+Y<- ts(ventas_mensuales[,3], start = c(2019,1), frequency = 12) #, end = c(2021,11)
+```
+
+### Transformación de Datos diarios a mensuales
+ 
+```{r}
+Y
+```
+
+### Grafico de la serie de Tiempo
+
+```{r plotSeire, echo=FALSE, warning=FALSE, message=FALSE,fig.align = 'center',  fig.width = 15, fig.height = 8}
+autoplot(Y)+
+  ggtitle("Grafica de ventas en el Tiempo de “CREACIONES Guianella”")+
+  ylab("Expresado en soles")
+
+```
+
+### Proceso de resultados
+
+<button class="btn btn-primary" data-toggle="collapse" data-target="#BlockName"> Mostrar/Ocultar </button>  
+<div id="BlockName" class="collapse"> 
+
+### Graficos de descomposición
+
+```{r Descomponer, echo=FALSE, warning=FALSE, message=FALSE,fig.align = 'center',  fig.width = 15, fig.height = 15}
+descom=decompose(Y)
+autoplot(descom)
+#data -> Grafica de la evolución
+#seasonal -> identifica la estacionalidad
+#trend -> Tendencia
+#remainder -> Residuos del modelo
+
+```
+
+### Grafico de medición de residuo
+ 
+```{r Residuo, echo=FALSE, warning=FALSE, message=FALSE,fig.align = 'center',  fig.width = 8, fig.height = 6}
+acf(Y)
+pacf(Y)
+
+```
+
+### Diferencia en el Tiempo
+
+```{r Diferent, echo=FALSE, warning=FALSE, message=FALSE,fig.align = 'center',  fig.width = 8, fig.height = 8}
+DY <- diff(Y)
+
+##Observar las diferencias
+autoplot(DY)+
+  ggtitle("Cambios anuales de ventas en el Tiempo")+
+  ylab("Expresado en soles")
+
+```
+
+### Modelo Arima
+
+```{r ModelAri, echo=FALSE, warning=FALSE, message=FALSE,fig.align = 'center',  fig.width = 15, fig.height = 15}
+#Elaboramos el modelo arima
+modelo_arima <- auto.arima(Y,d=1, D=1, stepwise = TRUE, approximation = TRUE, trace = FALSE)
+
+##Realizamos la revision de los residuos del modelo
+checkresiduals(modelo_arima)
+
+```
+
+</div>
+
+### Pronostico de ventas en los proximos 6 meses
+```{r Pronostico, echo=FALSE, warning=FALSE, message=FALSE,fig.align = 'center',  fig.width = 15, fig.height = 8}
+
+fcst <- forecast(modelo_arima, h=6, level = c(95))
+autoplot(fcst)+
+  ggtitle("Grafica de Pronostico de ventas en el Tiempo")+
+  ylab("Expresado en soles")
+
+```
+
+```{r resultados, echo=FALSE, warning=FALSE, message=FALSE}
+
+pronostico <- as.data.frame(fcst)
+
+#pronostico 
+
+knitr::kable(pronostico, format = "markdown")
+
+#Exportar los datos a un excel
+library(rio)
+
+fn <- "Pronostico_rio.xlsx"
+#Check its existence
+if (file.exists(fn)) {
+   #Delete file if it exists
+  print("Datos de pronostico actualizados")
+  file.remove(fn)
+}
+
+export(pronostico,"Pronostico_rio.xlsx")
+```
